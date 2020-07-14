@@ -4,8 +4,8 @@
   "description": "User service for the application La Ostra",
   "main": "server.js",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js"
+    "dev": "nodemon server/server.js",
+    "start": "node server/server.js"
   },
   "repository": {
     "type": "git",
@@ -23,10 +23,15 @@
   },
   "homepage": "https://github.com/woke-xyz/user-service-ostra#readme",
   "dependencies": {
+    "bcrypt": "^5.0.0",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
-    "express": "^4.17.1"
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.9.24",
+    "mongoose-unique-validator": "^2.0.3",
+    "underscore": "^1.10.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
