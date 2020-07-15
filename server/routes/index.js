@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcrypt')
 const { requiredField, emailValidation, passValidation } = require('./../shared/fieldValidation');
 const { registeredUserBy } = require('./../shared/errorDb');
 const { createUser } = require('./../models/actions')
@@ -105,6 +106,45 @@ app.post('/sign-up', (req, res) => {
             /** Return user data */
             res.json({ ok: true, user, token })
         })
+    })
+})
+
+/**
+ * Endpoint: Login with email and password
+ */
+app.post('/login', (req, res) => {
+    let body = req.body
+
+    User.findOne({ email: body.email }, (err, userDB) => {
+        if(err)
+            return res.status(500).json({ ok: false, err })
+
+        if(!userDB){
+            return res.status(400).json({
+                ok: false,
+                err: {
+                    message: "invalid_credentials"
+                }
+            })
+        }
+
+        const { _id, photo, role, url } = userDB;
+        const user = { _id, photo, role, url }
+
+        if(!bcrypt.compareSync( body.password, userDB.password )){
+            return res.status(400).json({
+                ok: false,
+                err: {
+                    message: "invalid_credentials"
+                }
+            }) 
+        }
+
+        let token = jwt.sign({
+            user
+        }, process.env.PRIVATE_KEY, { expiresIn: process.env.EXPIRATION_TOKEN })
+
+        res.json({ ok: true, user, token })
     })
 })
 
