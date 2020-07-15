@@ -119,6 +119,7 @@ app.post('/login', (req, res) => {
         if(err)
             return res.status(500).json({ ok: false, err })
 
+        /** Check if user exists in the database */
         if(!userDB){
             return res.status(400).json({
                 ok: false,
@@ -131,6 +132,7 @@ app.post('/login', (req, res) => {
         const { _id, photo, role, url } = userDB;
         const user = { _id, photo, role, url }
 
+        /** Check if the password is correct */
         if(!bcrypt.compareSync( body.password, userDB.password )){
             return res.status(400).json({
                 ok: false,
@@ -146,6 +148,26 @@ app.post('/login', (req, res) => {
 
         res.json({ ok: true, user, token })
     })
+})
+
+/**
+ * Endpoint: Get user by id
+ */
+app.get('/user/:id', [verifyToken], (req, res) => {
+    const objectIdRegexp = new RegExp("^[0-9a-fA-F]{24}$");
+    const id = req.params.id
+
+    /** Check if id parameter is object id type or nickname */
+    const isObjectId = objectIdRegexp.test(id)
+    const query = isObjectId ? { _id: id } : { nickname: id }
+
+    User.findOne(query)
+        .exec((err, user) => {
+            if(err)
+                return res.status(400).json({ ok: false, err });
+
+            res.json({ ok: true, user })
+        })
 })
 
 module.exports = app;
