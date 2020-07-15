@@ -1,11 +1,12 @@
 const express = require('express');
 const app = express();
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt')
+const bcrypt = require('bcrypt');
+const _ = require('underscore');
 const { requiredField, emailValidation, passValidation } = require('./../shared/fieldValidation');
 const { registeredUserBy } = require('./../shared/errorDb');
 const { createUser } = require('./../models/actions')
-const { verifyToken } = require('./../middlewares/authentication')
+const { verifyToken, verifyRole } = require('./../middlewares/authentication')
 const User = require('./../models/user');
 
 /**
@@ -168,6 +169,33 @@ app.get('/user/:id', [verifyToken], (req, res) => {
 
             res.json({ ok: true, user })
         })
+})
+
+/**
+ * Endpoint: Update user
+ */
+app.put('/user/:id', [verifyToken], function (req, res) {
+    const id = req.params.id
+    const body = _.pick(req.body, ['nickname', 'birthday', 'cell_phone', 'gender', 'zipCode'])
+
+    User.findByIdAndUpdate(id, body, {
+        new: true,
+        runValidators: true
+    }, (err, userDB) => {
+        if(err)
+            return res.status(400).json({ ok: false, err })
+
+        if(!userDB){
+            return res.status(400).json({
+                ok: false,
+                err: {
+                    message: 'user_not_found'
+                }
+            })
+        }
+        
+        res.json({ user: userDB })
+    })
 })
 
 module.exports = app;

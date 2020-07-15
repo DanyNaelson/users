@@ -38,7 +38,8 @@ app.use(routes)
 /**
  * Connection to database
  */
-mongoose.set('useCreateIndex', true)
+mongoose.set('useCreateIndex', true);
+mongoose.set('useFindAndModify', false);
 mongoose.connect(process.env.DATABASE_URI, { useNewUrlParser: true, useUnifiedTopology: true })
 
 /**
