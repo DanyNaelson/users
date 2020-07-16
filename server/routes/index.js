@@ -8,6 +8,7 @@ const { registeredUserBy } = require('./../shared/errorDb');
 const { createUser } = require('./../models/actions')
 const { verifyToken, verifyRole } = require('./../middlewares/authentication')
 const User = require('./../models/user');
+const tokenList = {}
 
 /**
  * Endpoint: API Users
@@ -40,7 +41,7 @@ app.get('/users', [verifyToken], (req, res) => {
  * Endpoint: Sign up with email
  */
 app.post('/sign-up', (req, res) => {
-    let body = req.body;
+    const body = req.body;
 
     /** Validate if the email field exists in the submitted body */
     validation = requiredField(body, 'email')
@@ -96,8 +97,8 @@ app.post('/sign-up', (req, res) => {
             if(err)
                 return res.status(400).json({ ok: false, err })
     
-            const { _id, photo, role, url } = userDB;
-            const user = { _id, photo, role, url }
+            const { _id, role, nickname } = userDB;
+            const user = { _id, role, nickname }
 
             /** Create token for future requests */
             const token = jwt.sign({
@@ -114,7 +115,7 @@ app.post('/sign-up', (req, res) => {
  * Endpoint: Login with email and password
  */
 app.post('/login', (req, res) => {
-    let body = req.body
+    const body = req.body
 
     User.findOne({ email: body.email }, (err, userDB) => {
         if(err)
@@ -130,8 +131,8 @@ app.post('/login', (req, res) => {
             })
         }
 
-        const { _id, photo, role, url } = userDB;
-        const user = { _id, photo, role, url }
+        const { _id, role, nickname } = userDB;
+        const user = { _id, role, nickname }
 
         /** Check if the password is correct */
         if(!bcrypt.compareSync( body.password, userDB.password )){
@@ -143,12 +144,53 @@ app.post('/login', (req, res) => {
             }) 
         }
 
-        let token = jwt.sign({
+        const token = jwt.sign({
             user
         }, process.env.PRIVATE_KEY, { expiresIn: process.env.EXPIRATION_TOKEN })
 
-        res.json({ ok: true, user, token })
+        const refreshToken = jwt.sign({
+            user
+        }, process.env.PRIVATE_KEY_REFRESH, { expiresIn: process.env.EXPIRATION_TOKEN_REFRESH })
+        const response = { ok: true, user, token, refreshToken }
+
+        tokenList[refreshToken] = response
+
+        res.json(response)
     })
+})
+
+/**
+ * Endpoint: Refresh token by user
+ */
+app.post('/refresh-token', (req, res) => {
+    const body = req.body
+
+    /** Check if refresh token exists */
+    if((body.refreshToken) && (body.refreshToken in tokenList)) {
+        const { id, role, nickname } = body;
+        const user = { _id: id, role, nickname }
+
+        const token = jwt.sign({
+            user
+        }, process.env.PRIVATE_KEY, { expiresIn: process.env.EXPIRATION_TOKEN })
+
+        const refreshToken = jwt.sign({
+            user
+        }, process.env.PRIVATE_KEY_REFRESH, { expiresIn: process.env.EXPIRATION_TOKEN_REFRESH })
+        const response = { ok: true, user, token, refreshToken }
+
+        /** Update the token in the list */
+        tokenList[refreshToken] = { ok: true, user, token, refreshToken }
+
+        res.json(response)       
+    } else {
+        res.status(401).json({
+            ok: false,
+            err: {
+                message: 'not_authorized_final'
+            }
+        })
+    }
 })
 
 /**
