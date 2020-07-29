@@ -2,7 +2,6 @@ const bcrypt = require('bcrypt')
 const User = require('./../models/user');
 
 const createUser = (body) => {
-    const date = new Date();
     let birthday = new Date(body.birthday);
     let nickname = body.email.replace(/[^\w\s]/gi, '-').toLowerCase();
     const newUser = new User({
