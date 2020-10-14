@@ -1,7 +1,7 @@
 const requiredField = (body, nameField) => {
     let validation = { ok: true }
 
-    if(!body.hasOwnProperty(nameField)){
+    if(!body.hasOwnProperty(nameField) || body[`${nameField}`] === ""){
         validation = {
             ok: false,
             err: {

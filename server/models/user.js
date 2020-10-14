@@ -10,6 +10,50 @@ let validGender = {
     message: 'invalid_gender'
 }
 let Schema = mongoose.Schema;
+let favoriteDrinkSchema = new Schema({
+    id: {
+        type: String,
+        unique: true
+    },
+    name: {
+        type: String,
+        required: [true, 'name_required']
+    },
+    picture: {
+        type: String,
+        required: false
+    },
+    category: {
+        type: String,
+        required: false
+    },
+    description: {
+        type: String,
+        required: false
+    }
+})
+let favoriteDishSchema = new Schema({
+    id: {
+        type: String,
+        unique: true
+    },
+    name: {
+        type: String,
+        required: [true, 'name_required']
+    },
+    picture: {
+        type: String,
+        required: false
+    },
+    category: {
+        type: String,
+        required: false
+    },
+    description: {
+        type: String,
+        required: false
+    }
+})
 let userSchema = new Schema({
     email: {
         type: String,
@@ -18,13 +62,17 @@ let userSchema = new Schema({
     },
     zipCode: {
         type: String,
-        required: [true, 'zipCode_required']
+        required: false
     },
     role: {
         type: String,
-        required: [true, 'role_required'],
+        required: false,
         default: 'USER',
         enum: validRoles
+    },
+    username: {
+        type: String,
+        required: [true, 'username_required']
     },
     nickname: {
         type: String,
@@ -43,15 +91,16 @@ let userSchema = new Schema({
         type: Date,
         required: false
     },
-    cell_phone: {
+    cellPhone: {
         type: String,
         required: false
         //TO DO: min length 10
     },
     gender: {
         type: String,
-        required: [true, 'gender_required'],
-        enum: validGender
+        required: false,
+        enum: validGender,
+        default: 'FEMALE'
     },
     google: {
         type: Boolean,
@@ -68,17 +117,37 @@ let userSchema = new Schema({
         required: false,
         default: false
     },
+    confirmationCode: {
+        type: String,
+        required: false,
+        default: null
+    },
     photo: {
         type: String,
         required: false,
         default: 'url_photo'
+    },
+    favoriteDrinks: {
+        type: [ favoriteDrinkSchema ]
+    },
+    favoriteDishes: {
+        type: [ favoriteDishSchema ]
     }
+},
+{
+    timestamps: true
+})
+
+userSchema.pre('findOneAndUpdate', function(next) {
+    this.update({}, { $set: { updatedAt: new Date() } });
+    next()
 })
 
 userSchema.methods.toJSON = function() {
     let user = this;
     let userObject = user.toObject();
     delete userObject.password;
+    delete userObject.confirmationCode;
 
     return userObject;
 }

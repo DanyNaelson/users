@@ -7,44 +7,62 @@ const {
     login,
     refreshToken,
     getUserById,
-    updateUser
+    updateUser,
+    verifyConfirmationCode,
+    resendConfirmationCode,
+    updateUserPreferences
 } = require('../controllers/user');
 
 /**
  * Endpoint: API Users
  */
-app.get('/', (req, res) => {
+app.get(process.env.BASE_URL + '/', (req, res) => {
     res.send("API users")
 })
 
 /**
  * Endpoint: Get all users
  */
-app.get('/users', [verifyToken], getUsers)
+app.get(process.env.BASE_URL + '/users', [verifyToken], getUsers)
 
 /**
  * Endpoint: Sign up with email
  */
-app.post('/sign-up', signUpUser)
+app.post(process.env.BASE_URL + '/sign-up', signUpUser)
 
 /**
  * Endpoint: Login with email and password
  */
-app.post('/login', login)
+app.post(process.env.BASE_URL + '/login', login)
 
 /**
  * Endpoint: Refresh token by user
  */
-app.post('/refresh-token', refreshToken)
+app.post(process.env.BASE_URL + '/refresh-token', refreshToken)
 
 /**
  * Endpoint: Get user by id
  */
-app.get('/user/:id', [verifyToken], getUserById)
+app.get(process.env.BASE_URL + '/user/:user_id', [verifyToken], getUserById)
 
 /**
  * Endpoint: Update user
  */
-app.put('/user/:id', [verifyToken], updateUser)
+app.put(process.env.BASE_URL + '/user/:user_id', [verifyToken], updateUser)
+
+/**
+ * Endpoint: Verify confirmation code
+ */
+app.put(process.env.BASE_URL + '/verify-confirmation-code/:user_id', [verifyToken], verifyConfirmationCode)
+
+/**
+ * Endpoint: Verify confirmation code
+ */
+app.put(process.env.BASE_URL + '/resend-code/:user_id', [verifyToken], resendConfirmationCode)
+
+/**
+ * Endpoint: Update favorite drinks and favorite dishes
+ */
+app.put(process.env.BASE_URL + '/user/:preferences/:user_id', [verifyToken], updateUserPreferences)
 
 module.exports = app;
