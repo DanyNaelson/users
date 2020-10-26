@@ -2,8 +2,13 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const _ = require('underscore');
 const { requiredField, emailValidation, passValidation } = require('../shared/fieldValidation');
-const { registeredUserBy } = require('../shared/errorDb');
 const { createUser } = require('../models/actions')
+const {
+    createTokenAndRefreshTokenByUser,
+    getAppleSigninKey,
+    registeredUserBy,
+    verifyToken
+} = require('../shared/functions')
 const User = require('../models/user');
 const { sendEmail } = require('../services/emailService');
 const { isNull } = require('underscore');
@@ -65,9 +70,17 @@ const signUpUser = (req, res) => {
             return res.status(500).json({ ok: false, err })
 
         /** Verify if user is registered */
-        let isNewUser = registeredUserBy(userDB, 'email')
-        if(!isNewUser.ok){
-            return res.status(400).json(isNewUser)
+        if(userDB){
+            const registeredUserType = registeredUserBy(userDB)
+
+            return res.status(400).json({
+                ok: false,
+                err: {
+                    message: `registered_user_by_${registeredUserType}`,
+                    registered_by: registeredUserType,
+                    field: "email"
+                }
+            })
         }
 
         /** Create user */
@@ -81,15 +94,8 @@ const signUpUser = (req, res) => {
             const { _id, role, nickname, email } = userDB;
             const user = { _id, role, nickname }
 
-            /** Create token for future requests */
-            const token = jwt.sign({
-                user
-            }, process.env.PRIVATE_KEY, { expiresIn: process.env.EXPIRATION_TOKEN })
-            
-            /** Create refreshToken for future requests */
-            const refreshToken = jwt.sign({
-                user
-            }, process.env.PRIVATE_KEY_REFRESH, { expiresIn: process.env.EXPIRATION_TOKEN_REFRESH })
+            /** Create token and refresh token for future requests */
+            const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
 
             /** Create confirmation code */
             const confirmationCode = Math.floor(100000 + Math.random() * 900000)
@@ -175,8 +181,19 @@ const login = (req, res) => {
             })
         }
 
-        const { _id, role, nickname } = userDB;
-        const user = { _id, role, nickname }
+        /** Check if user exists in the database by email */
+        if(!userDB.withEmail){
+            const registeredUserType = registeredUserBy(userDB)
+
+            return res.status(400).json({
+                ok: false,
+                err: {
+                    message: `registered_user_by_${registeredUserType}`,
+                    registered_by: registeredUserType,
+                    field: "email"
+                }
+            })
+        }
 
         /** Check if the password is correct */
         if(!bcrypt.compareSync( body.password, userDB.password )){
@@ -189,13 +206,11 @@ const login = (req, res) => {
             }) 
         }
 
-        const token = jwt.sign({
-            user
-        }, process.env.PRIVATE_KEY, { expiresIn: process.env.EXPIRATION_TOKEN })
+        const { _id, role, nickname } = userDB;
+        const user = { _id, role, nickname }
 
-        const refreshToken = jwt.sign({
-            user
-        }, process.env.PRIVATE_KEY_REFRESH, { expiresIn: process.env.EXPIRATION_TOKEN_REFRESH })
+        /** Create token and refresh token for future requests */
+        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
 
         userDB.id = userDB._id.toString()
 
@@ -205,6 +220,148 @@ const login = (req, res) => {
 
         res.json(response)
     })
+}
+
+/**
+ * Login with social network
+ * @param {*} req 
+ * @param {*} res 
+ */
+const signInSocialNetwork = async (req, res) => {
+    const { social_network } = req.params
+    const body = req.body
+    const socialNetworks = [ 'apple', 'facebook', 'google' ]
+    let validation = {}
+
+    if(!socialNetworks.includes(social_network))
+        return res.status(400).json({
+            ok: false,
+            err: {
+                message: 'social_network_not_found'
+            }
+        })
+
+    switch(social_network){
+        case "apple":
+            /** Validate if the identity token by apple exists in the submitted body */
+            validation = requiredField(body, 'identityToken')
+            if(!validation.ok)
+                return res.status(400).json(validation)
+
+            const { identityToken, user } = body
+            const json = jwt.decode(identityToken, { complete: true })
+            const kid = json.header.kid
+            const appleKey = await getAppleSigninKey(kid)
+
+            if(!appleKey)
+                return res.status(400).json({
+                    ok: false,
+                    err: {
+                        message: 'apple_error'
+                    }
+                })
+
+            const payload = await verifyToken(identityToken, appleKey)
+
+            if(!payload)
+                return res.status(400).json({
+                    ok: false,
+                    err: {
+                        message: 'apple_token_invalid'
+                    }
+                })
+
+            if(payload.sub !== user)
+                return res.status(400).json({
+                    ok: false,
+                    err: {
+                        message: 'apple_user_invalid'
+                    }
+                })
+            
+            if(payload.aud !== "com.laostra.laostra")
+                return res.status(400).json({
+                    ok: false,
+                    err: {
+                        message: 'app_invalid'
+                    }
+                })
+            
+            /** Search user in database */
+            User.findOne({ email: payload.email }, (err, userDB) => {
+                if(err)
+                    return res.status(500).json({ ok: false, err })
+
+                if(!userDB){
+                    /** Create user */
+                    const bodyUser = {
+                        email: payload.email,
+                        password: user,
+                        apple: true,
+                        confirm: true
+                    }
+                    const newUser = createUser(bodyUser)
+
+                    /** Save user into database */
+                    newUser.save(async(err, userDB) => {
+                        if(err)
+                            return res.status(400).json({ ok: false, err })
+                
+                        const { _id, role, nickname, email } = userDB;
+                        const user = { _id, role, nickname }
+
+                        /** Create token and refresh token for future requests */
+                        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
+                
+                        let response = { ok: true, user: userDB, token, refreshToken, signUp: true }
+
+                        tokenList[refreshToken] = response
+                
+                        /** Return user data */
+                        res.json(response)
+                    })
+                } else {
+                    if(userDB.apple) {
+                        const { _id, role, nickname, email } = userDB;
+                        const user = { _id, role, nickname }
+
+                        /** Create token and refresh token for future requests */
+                        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
+                
+                        let response = { ok: true, user: userDB, token, refreshToken, signUp: false }
+
+                        tokenList[refreshToken] = response
+                
+                        /** Return user data */
+                        res.json(response)
+                    } else {
+                        const registeredUserType = registeredUserBy(userDB)
+
+                        return res.status(400).json({
+                            ok: false,
+                            err: {
+                                message: `registered_user_by_${registeredUserType}`,
+                                registered_by: registeredUserType,
+                                field: registeredUserType
+                            }
+                        })
+                    }
+                }
+            })
+
+            break
+        case "facebook":
+            break
+        case "google":
+            break
+        default:
+            return res.status(400).json({
+                ok: false,
+                err: {
+                    message: 'social_network_not_found'
+                }
+            })
+    }
 }
 
 /**
@@ -219,13 +376,9 @@ const refreshToken = (req, res) => {
     if(body.refreshToken/* && (body.refreshToken in tokenList)*/) {
         const { user } = jwt.decode(body.refreshToken);
 
-        const token = jwt.sign({
-            user
-        }, process.env.PRIVATE_KEY, { expiresIn: process.env.EXPIRATION_TOKEN })
+        /** Create token and refresh token for future requests */
+        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
 
-        const refreshToken = jwt.sign({
-            user
-        }, process.env.PRIVATE_KEY_REFRESH, { expiresIn: process.env.EXPIRATION_TOKEN_REFRESH })
         const response = { ok: true, user, token, refreshToken }
 
         /** Update the token in the list */
@@ -489,6 +642,7 @@ module.exports = {
     getUsers,
     signUpUser,
     login,
+    signInSocialNetwork,
     refreshToken,
     getUserById,
     updateUser,

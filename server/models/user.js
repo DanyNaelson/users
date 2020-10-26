@@ -32,6 +32,7 @@ let favoriteDrinkSchema = new Schema({
         required: false
     }
 })
+
 let favoriteDishSchema = new Schema({
     id: {
         type: String,
@@ -54,6 +55,42 @@ let favoriteDishSchema = new Schema({
         required: false
     }
 })
+
+let promotionSchema = new Schema({
+    id: {
+        type: String,
+        unique: true
+    },
+    name: {
+        type: String,
+        required: [true, 'name_required']
+    },
+    code: {
+        type: String,
+        required: [true, 'code_required']
+    },
+    type: {
+        type: String,
+        required: [true, 'type_required']
+    },
+    value: {
+        type: String,
+        required: [true, 'value_required']
+    },
+    description: {
+        type: String,
+        required: [true, 'description_required']
+    },
+    endDate: {
+        type: Date,
+        required: [true, 'end_date_required']
+    },
+    startDate: {
+        type: Date,
+        required: [true, 'start_date_required']
+    }
+})
+
 let userSchema = new Schema({
     email: {
         type: String,
@@ -102,6 +139,11 @@ let userSchema = new Schema({
         enum: validGender,
         default: 'FEMALE'
     },
+    apple: {
+        type: Boolean,
+        required: false,
+        default: false
+    },
     google: {
         type: Boolean,
         required: false,
@@ -132,6 +174,9 @@ let userSchema = new Schema({
     },
     favoriteDishes: {
         type: [ favoriteDishSchema ]
+    },
+    promotions: {
+        type: [ promotionSchema ]
     }
 },
 {

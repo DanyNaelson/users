@@ -14,7 +14,7 @@ const sendEmail = async(body, token) => {
                 info: resp.data.info
             }
         })
-        .catch(err => {
+        .catch(err => {console.log(err)
             if(err.code === 'ETIMEDOUT') {
                 return {
                     ok: false,

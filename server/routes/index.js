@@ -5,6 +5,7 @@ const {
     getUsers,
     signUpUser,
     login,
+    signInSocialNetwork,
     refreshToken,
     getUserById,
     updateUser,
@@ -34,6 +35,11 @@ app.post(process.env.BASE_URL + '/sign-up', signUpUser)
  * Endpoint: Login with email and password
  */
 app.post(process.env.BASE_URL + '/login', login)
+
+/**
+ * Endpoint: Login with email and password
+ */
+app.post(process.env.BASE_URL + '/sign-in/:social_network', signInSocialNetwork)
 
 /**
  * Endpoint: Refresh token by user

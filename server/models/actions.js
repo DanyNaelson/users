@@ -14,7 +14,11 @@ const createUser = (body) => {
         nickname,
         password: bcrypt.hashSync( body.password, 10 ),
         birthday,
-        withEmail: true
+        withEmail: !body.apple && !body.facebook && !body.google ? true : false,
+        apple: body.apple ? body.apple : false,
+        facebook: body.facebook ? body.facebook : false,
+        google: body.google ? body.google : false,
+        confirm: body.confirm ? true : false
     })
 
     return newUser
