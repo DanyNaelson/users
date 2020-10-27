@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 const bcrypt = require('bcrypt');
 const _ = require('underscore');
 const { requiredField, emailValidation, passValidation } = require('../shared/fieldValidation');
@@ -7,6 +9,7 @@ const {
     createTokenAndRefreshTokenByUser,
     getAppleSigninKey,
     registeredUserBy,
+    verifyGoogleToken,
     verifyToken
 } = require('../shared/functions')
 const User = require('../models/user');
@@ -353,6 +356,80 @@ const signInSocialNetwork = async (req, res) => {
         case "facebook":
             break
         case "google":
+            let token = body.idToken
+            let googleUser = await verifyGoogleToken(token, client)
+                .catch(e => {
+                    return res.status(403).json({
+                        ok: false,
+                        err: {
+                            message: "not_authorized",
+                            field: 'google'
+                        }
+                    });
+                });
+
+            /** Search user in database */
+            User.findOne({ email: googleUser.email }, (err, userDB) => {
+                if(err)
+                    return res.status(500).json({ ok: false, err })
+
+                if(!userDB){
+                    /** Create user */
+                    const bodyUser = {
+                        email: googleUser.email,
+                        password: googleUser.sub,
+                        google: true,
+                        confirm: true
+                    }
+                    const newUser = createUser(bodyUser)
+
+                    /** Save user into database */
+                    newUser.save(async(err, userDB) => {
+                        if(err)
+                            return res.status(400).json({ ok: false, err })
+                
+                        const { _id, role, nickname, email } = userDB;
+                        const user = { _id, role, nickname }
+
+                        /** Create token and refresh token for future requests */
+                        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
+                
+                        let response = { ok: true, user: userDB, token, refreshToken, signUp: true }
+
+                        tokenList[refreshToken] = response
+                
+                        /** Return user data */
+                        res.json(response)
+                    })
+                } else {
+                    if(userDB.google) {
+                        const { _id, role, nickname, email } = userDB;
+                        const user = { _id, role, nickname }
+
+                        /** Create token and refresh token for future requests */
+                        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
+                
+                        let response = { ok: true, user: userDB, token, refreshToken, signUp: false }
+
+                        tokenList[refreshToken] = response
+                
+                        /** Return user data */
+                        res.json(response)
+                    } else {
+                        const registeredUserType = registeredUserBy(userDB)
+
+                        return res.status(400).json({
+                            ok: false,
+                            err: {
+                                message: `registered_user_by_${registeredUserType}`,
+                                registered_by: registeredUserType,
+                                field: registeredUserType
+                            }
+                        })
+                    }
+                }
+            })
+
             break
         default:
             return res.status(400).json({

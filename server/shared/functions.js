@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const jwksClient = require("jwks-rsa")
+const { OAuth2Client } = require('google-auth-library');
 
 const replaceStringArray = (stringArray, string) => {
     let newString = string
@@ -48,6 +49,21 @@ const verifyToken = (token, publicKey) => {
     })
 }
 
+/**
+ * Verify google token
+ * @param {*} token 
+ * @param {OAuth2Client} client
+ */
+async function verifyGoogleToken(token, client) {
+    const ticket = await client.verifyIdToken({
+        idToken: token,
+        audience: process.env.GOOGLE_CLIENT_ID
+    });
+    const payload = ticket.getPayload();
+    
+    return payload
+}
+
 const createTokenAndRefreshTokenByUser = user => {
     const token = jwt.sign({
         user
@@ -80,5 +96,6 @@ module.exports = {
     replaceStringArray,
     getAppleSigninKey,
     registeredUserBy,
+    verifyGoogleToken,
     verifyToken
 }
