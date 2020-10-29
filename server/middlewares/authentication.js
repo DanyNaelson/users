@@ -1,23 +1,11 @@
 const jwt = require('jsonwebtoken')
+const { isNull } = require('underscore')
 
 //========================================
 // Verify token
 //========================================
 let verifyToken = ( req, res, next ) => {
     const token = req.get('Authorization')
-    
-    if(req.params.hasOwnProperty('user_id')) {
-        const { user } = jwt.decode(token)
-
-        if(user._id !== req.params.user_id){
-            return res.status(401).json({
-                ok: false,
-                err: {
-                    message: 'not_authorized'
-                }
-            })
-        }
-    }
 
     jwt.verify( token, process.env.PRIVATE_KEY, (err, decoded) => {
         if(err){
@@ -36,6 +24,17 @@ let verifyToken = ( req, res, next ) => {
                     message: 'not_authorized'
                 }
             })
+        }
+
+        if(req.params.hasOwnProperty('user_id')) {
+            if(decoded.user._id !== req.params.user_id){
+                return res.status(401).json({
+                    ok: false,
+                    err: {
+                        message: 'not_authorized'
+                    }
+                })
+            }
         }
 
         req.user = decoded.user

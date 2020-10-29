@@ -11,7 +11,8 @@ const {
     updateUser,
     verifyConfirmationCode,
     resendConfirmationCode,
-    updateUserPreferences
+    updateUserPreferences,
+    addUserPromotions
 } = require('../controllers/user');
 
 /**
@@ -70,5 +71,10 @@ app.put(process.env.BASE_URL + '/resend-code/:user_id', [verifyToken], resendCon
  * Endpoint: Update favorite drinks and favorite dishes
  */
 app.put(process.env.BASE_URL + '/user/:preferences/:user_id', [verifyToken], updateUserPreferences)
+
+/**
+ * Endpoint: Add to user promotions
+ */
+app.put(process.env.BASE_URL + '/user/promotions/add/:user_id', [verifyToken], addUserPromotions)
 
 module.exports = app;

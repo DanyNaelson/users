@@ -57,9 +57,9 @@ let favoriteDishSchema = new Schema({
 })
 
 let promotionSchema = new Schema({
-    id: {
+    status: {
         type: String,
-        unique: true
+        required: [true, 'status_required']
     },
     name: {
         type: String,
@@ -74,7 +74,7 @@ let promotionSchema = new Schema({
         required: [true, 'type_required']
     },
     value: {
-        type: String,
+        type: Number,
         required: [true, 'value_required']
     },
     description: {

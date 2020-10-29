@@ -10,7 +10,8 @@ const {
     getAppleSigninKey,
     registeredUserBy,
     verifyGoogleToken,
-    verifyToken
+    verifyToken,
+    getFacebookUserData
 } = require('../shared/functions')
 const User = require('../models/user');
 const { sendEmail } = require('../services/emailService');
@@ -354,6 +355,80 @@ const signInSocialNetwork = async (req, res) => {
 
             break
         case "facebook":
+            let accessToken = body.accessToken
+            let facebookUser = await getFacebookUserData(accessToken)
+                .catch(e => {
+                    return res.status(403).json({
+                        ok: false,
+                        err: {
+                            message: "not_authorized",
+                            field: 'facebook'
+                        }
+                    });
+                });
+
+            /** Search user in database */
+            User.findOne({ email: facebookUser.email }, (err, userDB) => {
+                if(err)
+                    return res.status(500).json({ ok: false, err })
+
+                if(!userDB){
+                    /** Create user */
+                    const bodyUser = {
+                        email: facebookUser.email,
+                        password: facebookUser.id,
+                        facebook: true,
+                        confirm: true
+                    }
+                    const newUser = createUser(bodyUser)
+
+                    /** Save user into database */
+                    newUser.save(async(err, userDB) => {
+                        if(err)
+                            return res.status(400).json({ ok: false, err })
+                
+                        const { _id, role, nickname, email } = userDB;
+                        const user = { _id, role, nickname }
+
+                        /** Create token and refresh token for future requests */
+                        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
+                
+                        let response = { ok: true, user: userDB, token, refreshToken, signUp: true }
+
+                        tokenList[refreshToken] = response
+                
+                        /** Return user data */
+                        res.json(response)
+                    })
+                } else {
+                    if(userDB.facebook) {
+                        const { _id, role, nickname, email } = userDB;
+                        const user = { _id, role, nickname }
+
+                        /** Create token and refresh token for future requests */
+                        const { token, refreshToken } = createTokenAndRefreshTokenByUser(user)
+                
+                        let response = { ok: true, user: userDB, token, refreshToken, signUp: false }
+
+                        tokenList[refreshToken] = response
+                
+                        /** Return user data */
+                        res.json(response)
+                    } else {
+                        const registeredUserType = registeredUserBy(userDB)
+
+                        return res.status(400).json({
+                            ok: false,
+                            err: {
+                                message: `registered_user_by_${registeredUserType}`,
+                                registered_by: registeredUserType,
+                                field: registeredUserType
+                            }
+                        })
+                    }
+                }
+            })
+
             break
         case "google":
             let token = body.idToken
@@ -715,6 +790,47 @@ const updateUserPreferences = (req, res) => {
     })
 }
 
+/**
+ * Add to user promotions
+ * @param {*} req 
+ * @param {*} res 
+ */
+const addUserPromotions = (req, res) => {
+    const id = req.params.user_id
+    const body = req.body
+
+    User.findById({ _id: id }, 
+    (err, userDB) => {
+        if(err)
+            return res.status(400).json({ ok: false, err })
+
+        if(!userDB){
+            return res.status(404).json({
+                ok: false,
+                err: {
+                    message: 'user_not_found'
+                }
+            })
+        }
+
+        const index = userDB.promotions.findIndex(promotion => promotion.code === body.promotion.code)
+
+        if(index >= 0){
+            return res.status(400).json({
+                ok: false,
+                err: {
+                    message: 'existing_promotion'
+                }
+            })
+        }
+
+        userDB.promotions.push(body.promotion)
+        userDB.save()
+        
+        res.json({ ok: true, user: userDB })
+    })
+}
+
 module.exports = {
     getUsers,
     signUpUser,
@@ -725,5 +841,6 @@ module.exports = {
     updateUser,
     verifyConfirmationCode,
     resendConfirmationCode,
-    updateUserPreferences
+    updateUserPreferences,
+    addUserPromotions
 }

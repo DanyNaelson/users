@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const jwksClient = require("jwks-rsa")
 const { OAuth2Client } = require('google-auth-library');
+const axios = require('axios')
 
 const replaceStringArray = (stringArray, string) => {
     let newString = string
@@ -64,6 +65,23 @@ async function verifyGoogleToken(token, client) {
     return payload
 }
 
+/**
+ * Verify facebook access token
+ * @param {String} accessToken 
+ */
+async function getFacebookUserData(accessToken) {
+    const { data } = await axios({
+        url: 'https://graph.facebook.com/me',
+        method: 'get',
+        params: {
+            fields: ['id', 'email', 'first_name', 'last_name'].join(','),
+            access_token: accessToken,
+        },
+    })
+
+    return data;
+}
+
 const createTokenAndRefreshTokenByUser = user => {
     const token = jwt.sign({
         user
@@ -95,6 +113,7 @@ module.exports = {
     createTokenAndRefreshTokenByUser,
     replaceStringArray,
     getAppleSigninKey,
+    getFacebookUserData,
     registeredUserBy,
     verifyGoogleToken,
     verifyToken
