@@ -33,7 +33,7 @@ const emailValidation = (email) => {
 }
 
 const passValidation = (password) => {
-    const passRegexp = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{8,16}$/;
+    const passRegexp = /^(?=.*[A-Z])(?=.*[0-9])(?=.*[!@#$%^&*_])[a-zA-Z0-9!@#$%^&*_]{8,16}$/;
     let validation = { ok: true }
 
     if(!passRegexp.test(password)){
@@ -41,7 +41,33 @@ const passValidation = (password) => {
             ok: false,
             err: {
                 message: "invalid_password",
-                field: 'password'
+                field: 'password',
+                rules: [
+                    'at_least_one_capital_letter',
+                    'at_least_one_number',
+                    'at_least_one_symbol',
+                ],
+                symbols: '!@#$%^&*_',
+                length: '8_to_16'
+            }
+        }
+    }
+
+    return validation
+}
+
+const birthdayValidation = (birthday) => {
+    let validation = { ok: true }
+    let minBirthday = new Date()
+    birthday = new Date(birthday)
+    minBirthday.setFullYear(minBirthday.getFullYear() - 15)
+
+    if(birthday > minBirthday){
+        validation = {
+            ok: false,
+            err: {
+                message: "must_be_over_15_years",
+                field: 'birthday'
             }
         }
     }
@@ -50,6 +76,7 @@ const passValidation = (password) => {
 }
 
 module.exports = {
+    birthdayValidation,
     emailValidation,
     passValidation,
     requiredField

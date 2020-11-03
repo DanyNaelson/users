@@ -3,6 +3,7 @@ const User = require('./../models/user');
 
 const createUser = (body) => {
     let birthday = new Date();
+    birthday.setFullYear(birthday.getFullYear() - 15)
     let nickname = body.email.replace(/[^\w\s]/gi, '-').toLowerCase();
     const newUser = new User({
         email: body.email,

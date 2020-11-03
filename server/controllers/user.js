@@ -3,7 +3,12 @@ const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
 const bcrypt = require('bcrypt');
 const _ = require('underscore');
-const { requiredField, emailValidation, passValidation } = require('../shared/fieldValidation');
+const {
+    birthdayValidation,
+    requiredField,
+    emailValidation,
+    passValidation
+} = require('../shared/fieldValidation');
 const { createUser } = require('../models/actions')
 const {
     createTokenAndRefreshTokenByUser,
@@ -606,6 +611,11 @@ const getUserById = (req, res) => {
 const updateUser = (req, res) => {
     const id = req.params.user_id
     const body = _.pick(req.body, ['birthday', 'cell_phone', 'gender', 'zipCode'])
+
+    /** Email field validation */
+    validation = birthdayValidation(body.birthday)
+    if(!validation.ok)
+        return res.status(400).json(validation)
 
     User.findByIdAndUpdate(id, body, {
         new: true,
